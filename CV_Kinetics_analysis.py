@@ -1,3 +1,5 @@
+#made by Scott Waters
+
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -5,8 +7,9 @@ import numpy as np
 import scipy
 import glob
 import matplotlib as mpl
+#pip installation needed for pandas matplotlib, numpy, scipy
 
-
+#finds scan rate of individual file from metadata
 def find_scan_rate(file_name):
     txt_file = open(file_name)
     for line in txt_file.readlines():
@@ -17,6 +20,7 @@ def find_scan_rate(file_name):
 
     return scan_rate
 
+#finds reduction and oxidation peak of CV for single electron transfers (based on min/max)
 def get_peaks(file_name, Ru):
 
     txt_file = open(file_name)
@@ -76,6 +80,7 @@ def process_files(file_list, Ru):
 
     return data
 
+#used for finding linear fit
 def objective(x, a, b):
 	return a * x + b
 
@@ -103,7 +108,7 @@ def find_D_K(data_frame, conc, Eo, choice):
     Do_x = data_frame["sqrt scan rate (V)"]
     Do_y = data_frame[u'reduction peak current density (A/cm\u00b2)']
     plt.scatter(Do_x, Do_y)
-    
+    #plots Do
     Do_slope, Do_int, r_value_Do, p_value_Do, std_err_Do = scipy.stats.linregress(Do_x, Do_y)
     r_squared = r_value_Do**2
     R2 = f'{r_squared:.2f}'
@@ -117,7 +122,7 @@ def find_D_K(data_frame, conc, Eo, choice):
     Do_red = (Do_slope / (299000*math.sqrt(0.5)*conc/1000))**2
     #converstion to sci not. 
     Do_red_prnt = f'{Do_red:.2E}'
-
+    #plot formatting
     plt.title(u'D\u2092')
 
     plt.xlabel("sqrt scan rate (V)")
@@ -128,16 +133,17 @@ def find_D_K(data_frame, conc, Eo, choice):
     p = np.poly1d(z)
     plt.plot(Do_x, p(Do_x))
     #add trendline to plot
-
+    #plot size
     xmin, xmax, ymin, ymax = plt.axis()
     
     
-
+    #plot text and addition
     plot_text = u'R\u00b2 = ' + R2 + " with line of y = " + Slope_D +"x + " +int_D
     
     plt.text(xmin, ymin, plot_text, fontsize =  12)
     
     plt.show()
+    #saves plot
     plt.savefig("Do_plot.png")
     Ko_red = ""
     Ko_ox  = ""
@@ -268,7 +274,7 @@ if (choice == "red" or choice == "ox" or choice == "both"):
     print("Pulling the .DTA files in this directory")
     file_list = [i for i in glob.glob('*.dta')]
    
-    #returns key: scan rate (V/s) with val: current (A), voltage (V)
+    #option to remove files (useful if one scan is awful)
     remove_files = input("Do you need to remove files? (Y/N): ")
     remove_files = remove_files.upper()
     if remove_files == 'Y':
@@ -280,7 +286,7 @@ if (choice == "red" or choice == "ox" or choice == "both"):
             print(each, " has been removed")
     
     data_points = process_files(file_list, Ru)
-
+    #returns data of scan and peaks
 
     #gets dict with scan rates and peak values
     all_data_df = pd.DataFrame.from_dict(data_points, orient = "index")
@@ -297,9 +303,35 @@ if (choice == "red" or choice == "ox" or choice == "both"):
     final_df.to_csv("final_df.csv")
     print("FINAL_DF_DoFiles.CSV generated")
 
-else:
+#catch all for invalid choice
+else: 
     print("invalid choice, please restart")
     exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
