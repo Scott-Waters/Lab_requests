@@ -1,8 +1,11 @@
+#created by Scott Waters
+#need to pip install pandas and matplotlib
 import pandas as pd
 import matplotlib.pyplot as plt
 import glob
 
-
+#determines if scans are initiated with reduction or oxidation by comparing starting position and first step position
+#returns scan rate
 def find_scan_rate_direction(file_name):
     txt_file = open(file_name)
     init, next = 0, 0
@@ -20,6 +23,7 @@ def find_scan_rate_direction(file_name):
 
     return scan_rate, init, next
 
+#finds peaks of Ru corrected values
 def get_peaks(file_name, Ru):
 
     txt_file = open(file_name)
@@ -86,9 +90,8 @@ def process_files(file_list, Ru, conc):
 
 
 def find_Ehalf(data_frame):
-    #finds values from scan data
+    #finds E1/2 values from scan data
     
-    #creates list with values of sqrt scan rate and adds to df
     
     data_frame["E 1/2"] = data_frame[["reduction peak potential (V)", "oxidation peak potential (V)"]].mean(axis=1)
     #adds current density to DF
@@ -126,7 +129,7 @@ def make_plots(voltage, currentD, scan_rate, conc, zero, step):
     plt.show()  
     plt.savefig(file_name)
 
-
+#prompt for necessary constants
 Ru = float(input("Assuming the Ru has not been fixed, what is the internal resistance (getRU) value of the experiment? (in Ohms): "))
 conc = float(input("What is the concentration of the solution? (in mol): "))
 
@@ -163,6 +166,27 @@ final_df["Concentration [M]"] = conc
     #converts final dataframe with all data to a CSV
 final_df.to_csv("final_df_CVs.csv")
 print("FINAL_DF_CVs.CSV generated")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
