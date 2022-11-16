@@ -104,31 +104,33 @@ def crystal_name(fileName): #returns name of crystal sample
     file.close() #closes file
     return name
 
-#gathers all .cif files from directory
-print("All available cif files in folder have been input")
-file_list = [i for i in glob.glob('*.cif')]
-#removes files that were unwanted
-remove_files = input("Do you need to remove files? (Y/N): ")
-remove_files = remove_files.upper()
-if remove_files == 'Y':
-    to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
-    remove_list = to_remove.split(", ")
-    for each in remove_list:
-        print("removing :", each)
-        file_list.remove(each)
-        print(each, " has been removed")
-    
-data_list = {}
-#stores a dict of the result of the program "find_data_multi" with the user provided cifs
-data_list = find_data_multi(file_list) 
-#generates data frame using pandas of "data_list" dict. the first column is renamed to "cif file name"
-df = pd.DataFrame(data_list).rename_axis('cif file name').reset_index()
+def main():
+    #gathers all .cif files from directory
+    print("All available cif files in folder have been input")
+    file_list = [i for i in glob.glob('*.cif')]
+    #removes files that were unwanted
+    remove_files = input("Do you need to remove files? (Y/N): ")
+    remove_files = remove_files.upper()
+    if remove_files == 'Y':
+        to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
+        remove_list = to_remove.split(", ")
+        for each in remove_list:
+            print("removing :", each)
+            file_list.remove(each)
+            print(each, " has been removed")
+        
+    data_list = {}
+    #stores a dict of the result of the program "find_data_multi" with the user provided cifs
+    data_list = find_data_multi(file_list) 
+    #generates data frame using pandas of "data_list" dict. the first column is renamed to "cif file name"
+    df = pd.DataFrame(data_list).rename_axis('cif file name').reset_index()
 
-#converts the dataframe to csv and saves it as "out.csv"
-df.to_csv('cif_out.csv', index=False)
-print("cif_out.csv has been generated")
+    #converts the dataframe to csv and saves it as "out.csv"
+    df.to_csv('cif_out.csv', index=False)
+    print("cif_out.csv has been generated")
 
-
+if __name__ == "__main__":
+    main()
 
 
 
