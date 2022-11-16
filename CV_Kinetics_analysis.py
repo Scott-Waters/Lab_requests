@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import glob
-import matplotlib as mpl
+
 #pip installation needed for pandas matplotlib, numpy, scipy
 
 #finds scan rate of individual file from metadata
@@ -117,9 +117,11 @@ def find_D_K(data_frame, conc, Eo, choice):
     int_D = f'{Do_int:.2E}'
     
     print("slope =", Slope_D, " intercept = ", int_D)
-      
+    
     #Do math. conc is in M
-    Do_red = (Do_slope / (299000*math.sqrt(0.5)*conc/1000))**2
+    denomDo = float(299000*math.sqrt(0.5)*conc/1000)
+    DoSlope = float(Do_slope)
+    Do_red = (DoSlope / denomDo)**2
     #converstion to sci not. 
     Do_red_prnt = f'{Do_red:.2E}'
     #plot formatting
@@ -141,25 +143,28 @@ def find_D_K(data_frame, conc, Eo, choice):
     plot_text = u'R\u00b2 = ' + R2 + " with line of y = " + Slope_D +"x + " +int_D
     
     plt.text(xmin, ymin, plot_text, fontsize =  12)
-    
+
+    plt.tight_layout()
+    plt.savefig("Do_plot.png", bbox_inches='tight')
+
     plt.show()
     #saves plot
-    plt.savefig("Do_plot.png")
+    
     Ko_red = ""
     Ko_ox  = ""
     Ko_red_prnt = ""
     Ko_ox_prnt = ""
     #which data to calculate
     if(choice == "red"):
-        Ko_red = K0_red(data_frame)
+        Ko_red = K0_red(data_frame, conc)
         Ko_red_prnt = f'{Ko_red:.2E}'
     elif(choice == "ox"):
-        Ko_ox = K0_ox(data_frame)
+        Ko_ox = K0_ox(data_frame, conc)
         Ko_ox_prnt = f'{Ko_ox:.2E}'
     elif(choice == "both"):
-        Ko_red = K0_red(data_frame)
+        Ko_red = K0_red(data_frame, conc)
         Ko_red_prnt = f'{Ko_red:.2E}'
-        Ko_ox = K0_ox(data_frame)
+        Ko_ox = K0_ox(data_frame, conc)
         Ko_ox_prnt = f'{Ko_ox:.2E}'
         
     #printing results based on need
@@ -178,7 +183,7 @@ def find_D_K(data_frame, conc, Eo, choice):
     #returns saved data for export to CSV
     return data_frame
 
-def K0_ox(data):
+def K0_ox(data, conc):
     print("Finding Ko of oxidation")
     #Finds Ko of oxidation
     Ko_x_ox = data["E - Eo (V) _ ox"]
@@ -194,9 +199,11 @@ def K0_ox(data):
     int_K_ox = f'{Ko_int:.2E}'
         
     print("slope =", Slope_K_ox, " intercept = ", int_K_ox)
-
+    
         #Ko math
-    Ko_ox = math.exp(Ko_int) / (0.227*964800*0.0707*conc/1000)
+    denom = float(0.227*964800*0.0707*conc/1000)
+    Ko_ox_intFloat = float(int_K_ox)
+    Ko_ox = float(math.exp(Ko_ox_intFloat) / denom)
         #putting into scientific notation
     plt.scatter(Ko_x_ox, Ko_y_ox)
     plt.title('Ko_ox')
@@ -211,14 +218,15 @@ def K0_ox(data):
     plot_text = u'R\u00b2 = ' + R2_Ko_ox + " with line of y = " + Slope_K_ox +"x + " +int_K_ox
     xmin, xmax, ymin, ymax = plt.axis()
     plt.text(xmin, ymin, plot_text, fontsize =  12)
-    
+    plt.tight_layout()
+    plt.savefig("Ko_ox_plot.png", bbox_inches='tight')
     plt.show()
-    plt.savefig("Ko_ox_plot.png")    
+        
     
     
     return Ko_ox
 
-def K0_red(data):
+def K0_red(data, conc):
     print("Finding Ko of reduction")
         #Finds Ko
     Ko_x = data["E - Eo (V) _ red"]
@@ -235,7 +243,9 @@ def K0_red(data):
     print("slope =", Ko_slope, " intercept = ", Ko_int)
 
     #Ko math
-    Ko_red = math.exp(Ko_int) / (0.227*964800*0.0707 *conc / 100000)
+    Ko_red_denom = float(0.227*964800*0.0707 *conc / 100000)
+    Ko_int_float = float(Ko_int)
+    Ko_red = math.exp(Ko_int_float) / Ko_red_denom
     #putting into scientific notation
 
     plt.title('Ko_red')
@@ -250,90 +260,63 @@ def K0_red(data):
     plot_text = u'R\u00b2 = ' + str(R2) + " with line of y = " + str(Ko_slope) +"x + " + str(Ko_int)
     xmin, xmax, ymin, ymax = plt.axis()
     plt.text(xmin, ymin, plot_text, fontsize =  12)
-
+    plt.tight_layout()
+    plt.savefig("Ko_red_plot.png", bbox_inches='tight')
     plt.show()
-    plt.savefig("Ko_red_plot.png")
-        
     
-
     return Ko_red
 
 
 
-
-
-
-#prompt for required constants
-E0 = float(input("What is the E0 (vs Ag/AgCl) of the species? (in Volts): "))
-Ru = float(input("Assuming the Ru has not been fixed, what is the internal resistance (getRU) value of the experiment? (in Ohms): "))
-conc = float(input("What is the concentration of the solution? (in mol): "))
-choice = input("Do you want kinetic constant values for reduction, oxidation, or both? (red/ox/both): ")
-if (choice == "red" or choice == "ox" or choice == "both"):
+def main():
+    #prompt for required constants
+    E0 = float(input("What is the E0 (vs Ag/AgCl) of the species? (in Volts): "))
+    Ru = float(input("Assuming the Ru has not been fixed, what is the internal resistance (getRU) value of the experiment? (in Ohms): "))
+    conc = float(input("What is the concentration of the solution? (in M): "))
+    choice = input("Do you want kinetic constant values for reduction, oxidation, or both? (red/ox/both): ")
+    if (choice == "red" or choice == "ox" or choice == "both"):
+        
+        #pull .dta files
+        print("Pulling the .DTA files in this directory")
+        file_list = [i for i in glob.glob('*.dta')]
     
-    #pull .dta files
-    print("Pulling the .DTA files in this directory")
-    file_list = [i for i in glob.glob('*.dta')]
-   
-    #option to remove files (useful if one scan is awful)
-    remove_files = input("Do you need to remove files? (Y/N): ")
-    remove_files = remove_files.upper()
-    if remove_files == 'Y':
-        to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
-        remove_list = to_remove.split(", ")
-        for each in remove_list:
-            print("removing :", each)
-            file_list.remove(each)
-            print(each, " has been removed")
-    
-    data_points = process_files(file_list, Ru)
-    #returns data of scan and peaks
+        #option to remove files (useful if one scan is awful)
+        remove_files = input("Do you need to remove files? (Y/N): ")
+        remove_files = remove_files.upper()
+        if remove_files == 'Y':
+            to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
+            remove_list = to_remove.split(", ")
+            for each in remove_list:
+                print("removing :", each)
+                file_list.remove(each)
+                print(each, " has been removed")
+        
+        data_points = process_files(file_list, Ru)
+        #returns data of scan and peaks
 
-    #gets dict with scan rates and peak values
-    all_data_df = pd.DataFrame.from_dict(data_points, orient = "index")
+        #gets dict with scan rates and peak values
+        all_data_df = pd.DataFrame.from_dict(data_points, orient = "index")
 
-    #finds diffusion coeff and choice of K (ox or red or both). Returns as dataframe
-    final_df = find_D_K(all_data_df, conc, E0, choice)
+        #finds diffusion coeff and choice of K (ox or red or both). Returns as dataframe
+        final_df = find_D_K(all_data_df, conc, E0, choice)
 
-    #adds constants to DF
-    final_df["Internal Resistance (Ohms)"] = Ru
-    final_df["Concentration [M]"] = conc
-    final_df["E0 of species"] = E0
+        #adds constants to DF
+        final_df["Internal Resistance (Ohms)"] = Ru
+        final_df["Concentration [M]"] = conc
+        final_df["E0 of species"] = E0
 
-    #converts final dataframe with all data to a CSV
-    final_df.to_csv("final_df.csv")
-    print("FINAL_DF_DoFiles.CSV generated")
+        #converts final dataframe with all data to a CSV
+        final_df.to_csv("final_df.csv")
+        print("FINAL_DF_DoFiles.CSV generated")
 
-#catch all for invalid choice
-else: 
-    print("invalid choice, please restart")
-    exit()
+    #catch all for invalid choice
+    else: 
+        print("invalid choice, please restart")
+        exit()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
 
 
 
