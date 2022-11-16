@@ -68,10 +68,11 @@ def get_peaks(file_name, Ru):
     return peaks, Voltage_corrected, CurrentD
 
 
-def process_files(file_list, Ru, conc): 
+def process_files(file_list, Ru, conc, choice): 
     #returns {scan rate: peak, peak} 
 
     data = {}
+    plots_XY = {}
     
     for file in file_list:
         f = open("temp.txt", 'w')
@@ -80,13 +81,21 @@ def process_files(file_list, Ru, conc):
         df = pd.read_table(file, delimiter=",",on_bad_lines='error',  header=None)
         df.to_csv("temp.txt", header=None, index=None, sep='\t', mode='a')
         temp_scan, initial, end = find_scan_rate_direction("temp.txt")
-        
         temp_peaks, temp_voltage, temp_currentD = get_peaks("temp.txt", Ru)
-        make_plots(temp_voltage, temp_currentD, temp_scan, conc, initial, end)
-        data[temp_scan] = temp_peaks
-        f.close()    
 
-    return data
+        x_data, y_data, scan_dir = make_plots(temp_voltage, temp_currentD, temp_scan, conc, initial, end, choice)
+
+        data[temp_scan] = temp_peaks
+        
+        f.close()        
+        scan_rate_legend = round(temp_scan *1000)
+        plots_XY[scan_rate_legend] = x_data, y_data
+        plots_XY = dict(sorted(plots_XY.items()))
+
+        
+
+        data[temp_scan] = temp_peaks
+    return data, plots_XY, scan_dir
 
 
 def find_Ehalf(data_frame):
@@ -101,22 +110,16 @@ def find_Ehalf(data_frame):
     #returns saved data for export to CSV
     return data_frame
 
-def make_plots(voltage, currentD, scan_rate, conc, zero, step):
+def make_plots(voltage, currentD, scan_rate, conc, zero, step, choice):
 #makes plot with title of scan rate and saves as jpg
-    print ("plot made")
+    
     x = voltage
     y = currentD
-
-    plt.plot(x, y)
-    pltname = str(round(scan_rate, 2)) + " V/s, " + str(conc) + " M"
-    file_name = str(round(scan_rate, 2)) + "_Vs_" + str(conc) + "_plot.png"
-    plt.title(pltname)
-    plt.xlabel("Potential (V vs Ag/AgCl)")
-    plt.ylabel(u'Current Density (A/cm\u00b2)')
-    #calculate equation for trendline
-    maxA = max(currentD)
+    line, = plt.plot(x, y)
+    x_data = line.get_xdata()
+    y_data = line.get_ydata()
+    
     minA = min(currentD)
-    maxV = max(voltage)
     minV = min(voltage)
     
     scan_dir = ""
@@ -124,71 +127,110 @@ def make_plots(voltage, currentD, scan_rate, conc, zero, step):
         scan_dir = "Sweeping negative"
     elif(zero < step):
         scan_dir = "Sweeping positive"
-    E1_2 = (maxV - minV) / 2
-    plt.text(E1_2, minA, scan_dir, fontsize = 12)
-    plt.show()  
-    plt.savefig(file_name)
+    
+    if choice == "ind" or choice == "both":
+        pltname = str(round(scan_rate, 2)) + " V/s, " + str(conc) + " M"
+        file_name = str(round(scan_rate, 2)) + "_Vs_" + str(conc) + "_plot.png"
+        plt.title(pltname)
+        plt.xlabel("Potential (V vs Ag/AgCl)")
+        plt.ylabel(u'Current Density (A/cm\u00b2)')
+        #calculate equation for trendline
+        
+       
+        
+        plt.text(minV, minA, scan_dir, fontsize = 12)
+        plt.tight_layout()
+        
 
-#prompt for necessary constants
-Ru = float(input("Assuming the Ru has not been fixed, what is the internal resistance (getRU) value of the experiment? (in Ohms): "))
-conc = float(input("What is the concentration of the solution? (in mol): "))
+        plt.savefig(file_name, bbox_inches='tight')
+        plt.show()  
+
+    return x_data, y_data, scan_dir
+    
+
+def main():
+    #prompt for necessary constants
+    Ru = float(input("Assuming the Ru has not been fixed, what is the internal resistance (getRU) value of the experiment? (in Ohms): "))
+    conc = float(input("What is the concentration of the solution? (in M): "))
+    Material_name = input("What is the name of the material(s) (e.g. Fe(CN)6): ")
+    Choice = input("Do you want to plot CVs individually, overlaid, or both? (ind, over, both): ")
+
+
+
 
     
-#pull .dta files
-print("Pulling the .DTA files in this directory")
-file_list = [i for i in glob.glob('*.dta')]
-   
-#returns key: scan rate (V/s) with val: current (A), voltage (V)
-remove_files = input("Do you need to remove files? (Y/N): ")
-remove_files = remove_files.upper()
-if remove_files == 'Y':
-    to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
-    remove_list = to_remove.split(", ")
-    for each in remove_list:
-        print("removing :", each)
-        file_list.remove(each)
-        print(each, " has been removed")
+        
+    #pull .dta files
+    print("Pulling the .DTA files in this directory")
+    file_list = [i for i in glob.glob('*.dta')]
+
+    #returns key: scan rate (V/s) with val: current (A), voltage (V)
+    remove_files = input("Do you need to remove files? (Y/N): ")
+    remove_files = remove_files.upper()
+    if remove_files == 'Y':
+        to_remove = input("What files do you want to remove? (separate by \", \") (can be one or multiple) : ")
+        remove_list = to_remove.split(", ")
+        for each in remove_list:
+            print("removing :", each)
+            file_list.remove(each)
+            print(each, " has been removed")
+    print("The files to be plotted are: ", file_list)    
+
+    Choice = Choice.lower()
+    data_points, plot_list, scan_dir = process_files(file_list, Ru, conc, Choice)
     
-data_points = process_files(file_list, Ru, conc)
+
+    if Choice == "ind" or Choice == "over" or Choice == "both":
+        if Choice == "over" or Choice == "both":
+
+            plots_data = pd.DataFrame.from_dict(plot_list, orient = "index")
+
+            plots_data.columns = ['Voltage (V)', 'Current (A)']
+            plots_data.to_csv("plot_data.csv")
+            plt.clf()
+            Over_lap_name = f"{Material_name} {str(conc)}  M"
+            for key, df1 in plot_list.items():
+                plt.plot(df1[0], df1[1], label=key)
+                xMin = min(df1[0])
+                yMin = min(df1[1])
+
+            
+
+            plt.text(xMin+0.1, yMin, scan_dir, fontsize = 12)
+            plt.xlabel("Potential (V vs Ag/AgCl)")
+            plt.ylabel(u'Current Density (A/cm\u00b2)')
+            plt.title(Over_lap_name)
+            plt.tight_layout()
+            plt.legend(loc='lower right', borderaxespad=0, title='Scan Rates (mV/s)')
+            plt.savefig("overlaid_CVs.png", bbox_inches='tight')
+            plt.show()     
+        
+        #     #gets dict with scan rates and peak values
+        all_data_df = pd.DataFrame.from_dict(data_points, orient = "index")
 
 
-    #gets dict with scan rates and peak values
-all_data_df = pd.DataFrame.from_dict(data_points, orient = "index")
+            #finds diffusion coeff and choice of K (ox or red or both). Returns as dataframe
+        final_df = find_Ehalf(all_data_df)
 
-    #finds diffusion coeff and choice of K (ox or red or both). Returns as dataframe
-final_df = find_Ehalf(all_data_df)
-
-    #adds constants to DF
-final_df["Internal Resistance (Ohms)"] = Ru
-final_df["Concentration [M]"] = conc
+            #adds constants to DF
+        final_df["Internal Resistance (Ohms)"] = Ru
+        final_df["Concentration [M]"] = conc
 
 
-    #converts final dataframe with all data to a CSV
-final_df.to_csv("final_df_CVs.csv")
-print("FINAL_DF_CVs.CSV generated")
+            #converts final dataframe with all data to a CSV
+        final_df.to_csv("final_df_CVs.csv")
+        print("FINAL_DF_CVs.CSV generated")
+
+    else:
+        print ("invalid choice")
+        exit()
+    
 
 
+if __name__ == "__main__":
+    main()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
 
 
 
